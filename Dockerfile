@@ -1,29 +1,34 @@
-FROM runpod/pytorch:1.0.2-cu1281-torch280-ubuntu2404
+# syntax=docker/dockerfile:1
+FROM python:3.11-slim
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    MPLBACKEND=Agg
+    MPLBACKEND=Agg \
+    DEVICE=cuda
 
 WORKDIR /app
 
-# Minimal libs for OpenCV
+# Minimal runtime libs for OpenCV and TLS
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1 libglib2.0-0 \
-  && rm -rf /var/lib/apt/lists/*
+      libgl1 libglib2.0-0 curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-# Base image already has torch/torchvision (CUDA). Do not reinstall them.
-RUN pip install --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt \
- && pip uninstall -y opencv-python || true \
- && pip install --no-cache-dir --upgrade --force-reinstall opencv-python-headless
+# Install deps (Torch cu121 wheels keep size moderate and run on RunPod GPUs)
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install --upgrade pip \
+ && python -m pip install \
+      torch==2.4.1+cu121 torchvision==0.19.1+cu121 torchaudio==2.4.1+cu121 \
+      --index-url https://download.pytorch.org/whl/cu121 \
+ && python -m pip install --no-cache-dir -r /app/requirements.txt \
+ && python -m pip uninstall -y opencv-python || true \
+ && python -m pip install --no-cache-dir --upgrade --force-reinstall \
+      opencv-python-headless
 
-# Copy code and models into the image
+# App code
 COPY pipeline_server.py handler.py /app/
-COPY models /app/models
 
-# Prefer GPU unless overridden
-ENV DEVICE=cuda
+# Models are baked into the image
+COPY models /app/models
 
 CMD ["python", "-u", "handler.py"]
