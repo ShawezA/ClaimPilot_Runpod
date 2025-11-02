@@ -1,0 +1,8 @@
+{
+  "input": {
+    "image_url": "https://tse3.mm.bing.net/th/id/OIP.0YP1MrHjL4qJuIPWwstRtwHaE8?rs=1&pid=ImgDetMain&o=7&rm=3",
+    "include_masks": false,
+    "conf_parts": 0.6,
+    "conf_damage": 0.6
+  }
+}
